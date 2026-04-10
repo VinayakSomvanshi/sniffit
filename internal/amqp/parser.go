@@ -6,6 +6,12 @@ import (
 	"io"
 )
 
+const (
+	// MaxFrameSize prevents OOM by limiting any single frame to 1MB.
+	// Standard AMQP frames are usually < 128KB.
+	MaxFrameSize = 1024 * 1024
+)
+
 // Parser reads from an active stream and outputs AMQP Frames
 type Parser struct {
 	reader io.Reader
@@ -34,6 +40,9 @@ func (p *Parser) NextFrame() (*Frame, error) {
 	typ := header[0]
 	channel := binary.BigEndian.Uint16(header[1:3])
 	size := binary.BigEndian.Uint32(header[3:7])
+	if size > MaxFrameSize {
+		return nil, fmt.Errorf("frame size %d exceeds maximum of %d bytes", size, MaxFrameSize)
+	}
 
 	payload := make([]byte, size)
 	_, err = io.ReadFull(p.reader, payload)
