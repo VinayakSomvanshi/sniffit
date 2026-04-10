@@ -4,7 +4,7 @@ SniffIt is a powerful, low-overhead observability operator for RabbitMQ and AMQP
 
 ![SniffIt Dashboard](https://raw.githubusercontent.com/vinayak/sniffit/main/assets/dashboard_preview.png)
 
-## 🌟 Key Features
+## Key Features
 
 - **Zero-Code Instrumentation**: Automatically injects AMQP sniffers into your Kubernetes pods via a sidecar pattern. No application code changes required.
 - **AI-Driven Diagnostics**: Real-time failure analysis using OpenRouter-integrated LLMs (Qwen/Claude/GPT).
@@ -14,7 +14,7 @@ SniffIt is a powerful, low-overhead observability operator for RabbitMQ and AMQP
 - **Unified Dashboard**: A high-performance, Indigo-themed React dashboard for real-time telemetry and rule management.
 - **Hybrid Support**: Monitor both Kubernetes-native sidecars and external RabbitMQ brokers on standalone VMs or bare-metal.
 
-## 🚀 Quick Start (Local Testing)
+## Quick Start (Local Testing)
 
 ### 1. Start the Control Plane
 ```bash
@@ -30,7 +30,7 @@ sudo ./sniffit-probe --iface lo --port 5672 --name local-rabbit
 
 Visit **http://localhost:8080** to view the live dashboard.
 
-## ☸️ Kubernetes Deployment
+## Kubernetes Deployment
 
 Deploy the SniffIt operator using the official Helm chart:
 
@@ -56,11 +56,11 @@ externalMonitors:
 ```
 SniffIt will automatically deploy a dedicated sniffer pod to track this host.
 
-## 🛠️ Architecture
+## Architecture
 
 - **Probe**: A high-performance Go sniffer using `gopacket` and `tcpassembly` to reconstruct AMQP streams from the wire.
 - **Control Plane**: A specialized ingestion engine that deduplicates alerts, stores history in-memory, and provides a real-time SSE stream to the UI.
 - **AI Agent**: Asynchronous diagnostic pipeline that correlates network signals with pod metrics to provide deep English explanations of failures.
 
-## 📄 License
+## License
 MIT License.

@@ -110,7 +110,7 @@ function timeAgo(isoStr: string) {
 }
 
 function fmtTime(isoStr: string) {
-  if (!isoStr) return '—';
+  if (!isoStr) return '---';
   try {
     return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch { return isoStr; }
@@ -167,7 +167,7 @@ function AlertRow({ alert, onClick, selected }: { alert: Alert; onClick: () => v
       </div>
       <div>
         <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px', lineHeight: 1.3 }}>
-          {alert.plain_english.slice(0, 100)}{alert.plain_english.length > 100 ? '…' : ''}
+          {alert.plain_english.slice(0, 100)}{alert.plain_english.length > 100 ? '...' : ''}
         </div>
         <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
           {alert.method_name && <span>{alert.method_name}</span>}
@@ -432,7 +432,7 @@ export default function App() {
 
   return (
     <>
-      {/* ── Top Nav ─────────────────────────────────────────────────── */}
+      {/* -- Top Nav --------------------------------------------------─ */}
       <nav className="topnav">
         <div className="topnav-brand" onClick={() => setActivePage('dashboard')}>
           <Activity size={16} color="var(--accent)" />
@@ -474,7 +474,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* ── Main Body ───────────────────────────────────────────────── */}
+      {/* -- Main Body ------------------------------------------------─ */}
       <div className="shell">
 
         {/* DASHBOARD */}
@@ -483,7 +483,7 @@ export default function App() {
             <div className="page-header">
               <div>
                 <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#fff', margin: 0 }}>Overview</h1>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>Real-time AMQP observability · last 60 minutes</p>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>Real-time AMQP observability - last 60 minutes</p>
               </div>
             </div>
 
@@ -533,15 +533,15 @@ export default function App() {
               </div>
               <div className="stat-card" onClick={() => setActivePage('topology')}>
                 <div className="stat-label">Topology</div>
-                <div className="stat-num" style={{ color: 'var(--accent)' }}>{queues.filter(q => q.active).length}q · {exchanges.filter(e => e.active).length}x</div>
-                <div className="stat-sub">queues · exchanges</div>
+                <div className="stat-num" style={{ color: 'var(--accent)' }}>{queues.filter(q => q.active).length}q - {exchanges.filter(e => e.active).length}x</div>
+                <div className="stat-sub">queues - exchanges</div>
               </div>
             </div>
 
             {/* Alert volume chart */}
             <div className="card" style={{ marginBottom: '24px' }}>
               <div className="card-header">
-                <div className="card-title">Alert Volume · last 60 min (5-min buckets)</div>
+                <div className="card-title">Alert Volume - last 60 min (5-min buckets)</div>
               </div>
               <div className="card-body">
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '80px' }}>
@@ -554,9 +554,9 @@ export default function App() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '11px', color: 'var(--text-dim)' }}>
-                  <span style={{ color: 'var(--red)' }}>■</span> Error
-                  <span style={{ color: 'var(--yellow)' }}>■</span> Warn
-                  <span style={{ color: 'var(--blue)' }}>■</span> Info
+                  <span style={{ color: 'var(--red)' }}>[#]</span> Error
+                  <span style={{ color: 'var(--yellow)' }}>[#]</span> Warn
+                  <span style={{ color: 'var(--blue)' }}>[#]</span> Info
                 </div>
               </div>
             </div>
@@ -589,7 +589,7 @@ export default function App() {
             <div className="page-header">
               <div>
                 <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#fff', margin: 0 }}>Events</h1>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>{alerts.length} total · {filtered.length} shown</p>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>{alerts.length} total - {filtered.length} shown</p>
               </div>
             </div>
 
@@ -655,7 +655,7 @@ export default function App() {
             <div className="page-header">
               <div>
                 <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#fff', margin: 0 }}>Detection Rules</h1>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>{RULES.length} heuristics active · AMQP 0-9-1 protocol</p>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>{RULES.length} heuristics active - AMQP 0-9-1 protocol</p>
               </div>
               <div className="search-wrap">
                 <Search size={13} color="var(--text-dim)" />
@@ -712,7 +712,7 @@ export default function App() {
                 <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#fff', margin: 0 }}>Topology</h1>
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>
                   Derived from captured AMQP traffic
-                  {topology?.last_updated && ` · updated ${fmtTime(topology.last_updated)}`}
+                  {topology?.last_updated && ` - updated ${fmtTime(topology.last_updated)}`}
                 </p>
               </div>
               <button className="btn btn-ghost" onClick={loadTopology} disabled={topoLoading}>
@@ -908,7 +908,7 @@ export default function App() {
                   )}
                   {chatLoading && (
                     <div style={{ alignSelf: 'flex-start', padding: '10px 14px', borderRadius: '8px', background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: '13px' }}>
-                      <span className="spin" style={{ display: 'inline-block', marginRight: '6px' }}>•</span> Thinking...
+                      <span className="spin" style={{ display: 'inline-block', marginRight: '6px' }}>*</span> Thinking...
                     </div>
                   )}
                   <div ref={chatEndRef} />
@@ -943,7 +943,7 @@ export default function App() {
                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>Persisted to disk — survive restarts</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {settingsSaved && <span style={{ fontSize: '12px', color: 'var(--green)' }}>✓ Saved</span>}
+                {settingsSaved && <span style={{ fontSize: '12px', color: 'var(--green)' }}>OK Saved</span>}
                 {settingsDirty && !settingsSaved && <span style={{ fontSize: '12px', color: 'var(--yellow)' }}>Unsaved changes</span>}
                 <button
                   className="btn btn-primary"
@@ -1039,7 +1039,7 @@ export default function App() {
         )}
       </div>
 
-      {/* ── Alert Detail Drawer ─────────────────────────────────────── */}
+      {/* -- Alert Detail Drawer --------------------------------------─ */}
       {selectedAlert && (
         <div className="drawer-overlay" onClick={e => { if (e.target === e.currentTarget) setSelectedAlert(null); }}>
           <div className="drawer">
@@ -1058,7 +1058,7 @@ export default function App() {
                   {new Date(selectedAlert.timestamp).toLocaleString()}
                 </div>
               </div>
-              <button className="drawer-close" onClick={() => setSelectedAlert(null)}>✕</button>
+              <button className="drawer-close" onClick={() => setSelectedAlert(null)}>X</button>
             </div>
             <div className="drawer-body">
 
@@ -1098,7 +1098,7 @@ export default function App() {
                 <div className="drawer-section-title">Context</div>
                 <div className="kv-table">
                   <div className="kv-row"><span>Rule</span><span className="mono">{selectedAlert.rule_name}</span></div>
-                  <div className="kv-row"><span>Method</span><span className="mono">{selectedAlert.method_name || '—'}</span></div>
+                  <div className="kv-row"><span>Method</span><span className="mono">{selectedAlert.method_name || '---'}</span></div>
                   {selectedAlert.entity && <div className="kv-row"><span>Entity</span><span className="mono">{selectedAlert.entity}</span></div>}
                   <div className="kv-row"><span>Source</span><span className="mono">{getSource(selectedAlert)}</span></div>
                   <div className="kv-row"><span>Broker</span><span className="mono">{getBroker(selectedAlert)}</span></div>
