@@ -308,7 +308,7 @@ export default function App() {
     // 1. Load alert history
     fetch('/api/alerts/history')
       .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setAlerts(data.reverse()); })
+      .then(data => { if (Array.isArray(data)) setAlerts(data.reverse().slice(0, 500)); })
       .catch(console.error);
 
     // 2. Load current settings
