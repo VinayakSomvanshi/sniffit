@@ -172,20 +172,14 @@ func (s *Server) loadPersistedAlerts() {
 	}
 }
 
-func (s *Server) saveAlertsToDisk() {
-	// Called while s.mu is held (read lock is fine, data won't change)
-	data, err := json.MarshalIndent(s.alerts, "", "  ")
-	if err != nil {
-		log.Printf("[server] Could not marshal alerts: %v", err)
-		return
-	}
-	tmp := alertsFile + ".tmp"
+func (s *Server) writeDataToDisk(path string, data []byte) {
+	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, data, 0644); err != nil {
-		log.Printf("[server] Could not write alerts temp file: %v", err)
+		log.Printf("[server] Could not write file %s: %v", path, err)
 		return
 	}
-	if err := os.Rename(tmp, alertsFile); err != nil {
-		log.Printf("[server] Could not rename alerts file: %v", err)
+	if err := os.Rename(tmp, path); err != nil {
+		log.Printf("[server] Could not rename file %s: %v", path, err)
 	}
 }
 
@@ -207,13 +201,12 @@ func (s *Server) loadPersistedSettings() {
 }
 
 func (s *Server) saveSettingsToDisk() {
+	// Already under s.mu lock
 	data, err := json.MarshalIndent(s.settings, "", "  ")
 	if err != nil {
 		return
 	}
-	tmp := settingsFile + ".tmp"
-	_ = os.WriteFile(tmp, data, 0644)
-	_ = os.Rename(tmp, settingsFile)
+	go s.writeDataToDisk(settingsFile, data)
 }
 
 // ── Topology Tracking ────────────────────────────────────────────────────────
@@ -353,7 +346,8 @@ func (s *Server) handleAlerts(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		s.mu.Lock()
 		s.alerts = make([]*rules.Alert, 0)
-		s.saveAlertsToDisk()
+		data, _ := json.MarshalIndent(s.alerts, "", "  ")
+		go s.writeDataToDisk(alertsFile, data)
 		s.mu.Unlock()
 		// Also clear topology
 		s.topoMu.Lock()
@@ -389,8 +383,9 @@ func (s *Server) handlePostAlert(w http.ResponseWriter, r *http.Request) {
 		s.alerts = s.alerts[1:]
 	}
 	s.alerts = append(s.alerts, alertPtr)
-	// Persist to disk asynchronously
-	go s.saveAlertsToDisk()
+	// Persist to disk asynchronously using a snapshot to avoid race conditions
+	data, _ := json.MarshalIndent(s.alerts, "", "  ")
+	go s.writeDataToDisk(alertsFile, data)
 
 	// Broadcast to SSE clients
 	for client := range s.clients {
@@ -432,8 +427,9 @@ func (s *Server) handlePostAlert(w http.ResponseWriter, r *http.Request) {
 			}
 			s.mu.Lock()
 			ptr.AIDiagnosis = diagnosis
-			// Save updated alert to disk
-			go s.saveAlertsToDisk()
+			// Save updated alert to disk via snapshot
+			data, _ := json.MarshalIndent(s.alerts, "", "  ")
+			go s.writeDataToDisk(alertsFile, data)
 			for client := range s.clients {
 				select {
 				case client <- ptr:
