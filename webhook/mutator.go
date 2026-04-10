@@ -3,7 +3,7 @@ package webhook
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -24,7 +24,7 @@ func NewMutator(controlPlaneURL string) *Mutator {
 }
 
 func (m *Mutator) HandleMutate(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("could not read webhook body: %v", err)
 		http.Error(w, "could not read request body", http.StatusBadRequest)
@@ -64,6 +64,9 @@ func (m *Mutator) HandleMutate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Properly escape the control plane URL for the JSON patch
+	cpURL, _ := json.Marshal(m.ControlPlaneURL)
+
 	// Create JSON patches to add the sidecar container
 	patch := `[
 		{
@@ -80,7 +83,7 @@ func (m *Mutator) HandleMutate(w http.ResponseWriter, r *http.Request) {
 				"env": [
 					{
 						"name": "CONTROL_PLANE_URL",
-						"value": "` + m.ControlPlaneURL + `"
+						"value": ` + string(cpURL) + `
 					},
 					{
 						"name": "POD_NAME",
