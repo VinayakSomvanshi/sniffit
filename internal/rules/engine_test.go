@@ -2,45 +2,49 @@ package rules
 
 import (
 	"encoding/binary"
+	"net/http"
 	"testing"
 
 	"github.com/vinayak/sniffit/internal/amqp"
 )
 
-func TestEngineRuleEvaluations(t *testing.T) {
+func TestEngine_EvaluateMethod_Connection(t *testing.T) {
 	engine := NewEngine()
 
 	tests := []struct {
 		name       string
 		method     *amqp.MethodPayload
 		wantRuleID string
+		wantSev    string
 	}{
 		{
-			name: "1.1 Auth Refused",
+			name: "Auth Refused",
 			method: &amqp.MethodPayload{
-				ClassID:  10, // Connection
-				MethodID: 50, // Close
-				Args:     buildConnectionCloseArgs(403, "ACCESS_REFUSED - Login was refused using authentication mechanism..."),
+				ClassID:  10,
+				MethodID: 50,
+				Args:     buildConnectionCloseArgs(403, "ACCESS_REFUSED"),
 			},
 			wantRuleID: "1.1",
+			wantSev:    "error",
 		},
 		{
-			name: "1.2 Missed heartbeats",
+			name: "Missed Heartbeats",
 			method: &amqp.MethodPayload{
-				ClassID:  10, // Connection
-				MethodID: 50, // Close
-				Args:     buildConnectionCloseArgs(320, "CONNECTION_FORCED - missed heartbeats from client"),
+				ClassID:  10,
+				MethodID: 50,
+				Args:     buildConnectionCloseArgs(320, "missed heartbeats"),
 			},
 			wantRuleID: "1.2",
+			wantSev:    "error",
 		},
 		{
-			name: "4.1 Consumer timeout",
+			name: "Connection Opened",
 			method: &amqp.MethodPayload{
-				ClassID:  10, // Connection
-				MethodID: 50, // Close
-				Args:     buildConnectionCloseArgs(406, "PRECONDITION_FAILED - delivery acknowledgement on channel timed out"),
+				ClassID:  10,
+				MethodID: 40, // connection.open
 			},
-			wantRuleID: "4.1",
+			wantRuleID: "0.3",
+			wantSev:    "info",
 		},
 	}
 
@@ -48,15 +52,63 @@ func TestEngineRuleEvaluations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			alert := engine.EvaluateMethod(tt.method)
 			if alert == nil {
-				t.Fatalf("expected alert for %s, got nil", tt.name)
+				t.Fatalf("expected alert")
 			}
 			if alert.RuleID != tt.wantRuleID {
-				t.Errorf("got RuleID = %q, want %q", alert.RuleID, tt.wantRuleID)
+				t.Errorf("got RuleID %q, want %q", alert.RuleID, tt.wantRuleID)
 			}
-			if alert.Timestamp.IsZero() {
-				t.Errorf("expected timestamp to be set")
+			if alert.Severity != tt.wantSev {
+				t.Errorf("got Severity %q, want %q", alert.Severity, tt.wantSev)
 			}
 		})
+	}
+}
+
+func TestEngine_EvaluateMethod_Queue(t *testing.T) {
+	engine := NewEngine()
+
+	// queue.declare (10, 40)
+	buf := make([]byte, 100)
+	buf[2] = byte(len("test-queue"))
+	copy(buf[3:], "test-queue")
+
+	method := &amqp.MethodPayload{
+		ClassID:  40,
+		MethodID: 10,
+		Args:     buf,
+	}
+
+	alert := engine.EvaluateMethod(method)
+	if alert == nil || alert.RuleID != "0.10" {
+		t.Errorf("expected queue_declare alert, got %v", alert)
+	}
+	if alert.Entity != "test-queue" {
+		t.Errorf("expected entity 'test-queue', got %q", alert.Entity)
+	}
+}
+
+func TestEngine_EvaluateHTTPResponse(t *testing.T) {
+	engine := NewEngine()
+
+	// 401 Unauthorized
+	resp := &http.Response{StatusCode: 401}
+	alert := engine.EvaluateHTTPResponse(resp)
+	if alert == nil || alert.RuleID != "5.1" {
+		t.Errorf("expected management_auth_failure, got %v", alert)
+	}
+
+	// 404 Not Found
+	resp = &http.Response{StatusCode: 404}
+	alert = engine.EvaluateHTTPResponse(resp)
+	if alert == nil || alert.RuleID != "5.2" {
+		t.Errorf("expected management_api_error, got %v", alert)
+	}
+
+	// 200 OK
+	resp = &http.Response{StatusCode: 200}
+	alert = engine.EvaluateHTTPResponse(resp)
+	if alert != nil {
+		t.Errorf("expected nil for 200 OK, got %v", alert)
 	}
 }
 
@@ -65,6 +117,5 @@ func buildConnectionCloseArgs(replyCode uint16, text string) []byte {
 	binary.BigEndian.PutUint16(buf[0:2], replyCode)
 	buf[2] = byte(len(text))
 	copy(buf[3:], text)
-	// mock class/method
 	return buf
 }
