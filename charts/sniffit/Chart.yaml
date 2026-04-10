@@ -1,0 +1,9 @@
+apiVersion: v2
+name: sniffit
+description: Professional RabbitMQ/AMQP Observability Platform with AI Diagnostics
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: vinayak
+    email: vinayak@example.com

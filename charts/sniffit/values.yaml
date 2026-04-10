@@ -1,0 +1,81 @@
+# Default values for sniffit.
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  repository: vinayak/sniffit-control-plane
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+probeImage:
+  repository: vinayak/sniffit-probe
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+
+webhook:
+  port: 443
+  # Cert-manager integration
+  certManager:
+    enabled: true
+    issuerRef:
+      name: selfsigned-issuer
+      kind: ClusterIssuer
+
+config:
+  # Get your API key from https://openrouter.ai/
+  openRouterKey: "sk-or-v1-..."
+  aiTriggerLevel: "error"
+  webhookUrl: "https://sniffit-webhook.default.svc.cluster.local"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Explicit External Monitors
+# For monitoring CloudAMQP, Amazon MQ, or standalone brokers outside this cluster.
+externalMonitors: []
+# - name: "production-rmq-01"
+#   host: "10.0.0.5" # The IP address of the external RabbitMQ
+#   port: 5672
+#   interface: "eth0"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
