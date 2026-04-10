@@ -1,0 +1,29 @@
+# Binaries
+sniffit-control
+sniffit-probe
+sniffit-test
+test_link.go
+
+# Data
+sniffit-data/
+*.db
+*.log
+
+# Environment
+.env
+.env.*
+
+# Go
+bin/
+pkg/
+vendor/
+
+# Node / UI
+ui/node_modules/
+ui/dist/
+ui/.env
+ui/.env.*
+.DS_Store
+
+# Kubernetes
+*.kubeconfig
