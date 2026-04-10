@@ -149,17 +149,10 @@ function AlertRow({ alert, onClick, selected }: { alert: Alert; onClick: () => v
   return (
     <div
       onClick={onClick}
+      className={`alert-row ${selected ? 'selected' : ''}`}
       style={{
-        display: 'grid', gridTemplateColumns: '80px 1fr auto',
-        alignItems: 'center', gap: '12px',
-        padding: '10px 16px',
-        borderBottom: '1px solid var(--border)',
-        background: selected ? 'var(--surface2)' : 'transparent',
-        cursor: 'pointer', transition: 'background 0.1s',
         borderLeft: `3px solid ${SEV_COLOR[alert.severity] || 'transparent'}`,
       }}
-      onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLElement).style.background = 'var(--surface)'; }}
-      onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
         <SevBadge sev={alert.severity} />

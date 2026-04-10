@@ -306,6 +306,27 @@ html, body, #root {
 }
 .search-input::placeholder { color: var(--text-dim); }
 
+/* -- Alert Row --------------------------------------------------------------- */
+
+.alert-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.alert-row:hover {
+  background: var(--surface);
+}
+
+.alert-row.selected {
+  background: var(--surface2);
+}
+
 /* -- Tag Pills --------------------------------------------------------------─ */
 
 .mono-tag {
