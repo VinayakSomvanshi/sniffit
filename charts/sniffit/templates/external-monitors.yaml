@@ -1,0 +1,41 @@
+{{- range .Values.externalMonitors }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sniffit.fullname" $ }}-monitor-{{ .name | kebabcase }}
+  labels:
+    {{- include "sniffit.labels" $ | nindent 4 }}
+    sniffit/role: monitor
+    sniffit/target: {{ .name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "sniffit.selectorLabels" $ | nindent 6 }}
+      sniffit/role: monitor
+      sniffit/target: {{ .name | quote }}
+  template:
+    metadata:
+      labels:
+        {{- include "sniffit.selectorLabels" $ | nindent 8 }}
+        sniffit/role: monitor
+        sniffit/target: {{ .name | quote }}
+    spec:
+      serviceAccountName: {{ include "sniffit.serviceAccountName" $ }}
+      containers:
+        - name: sniffer
+          image: "{{ $.Values.probeImage.repository }}:{{ $.Values.probeImage.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          securityContext:
+            capabilities:
+              add: ["NET_RAW", "NET_ADMIN"]
+          args:
+            - "--iface={{ .interface | default "eth0" }}"
+            - "--port={{ .port | default 5672 }}"
+            - "--target-host={{ .host }}"
+            - "--name={{ .name }}"
+            - "--control-plane={{ $.Values.config.webhookUrl }}"
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+{{- end }}
