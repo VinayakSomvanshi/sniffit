@@ -53,7 +53,6 @@ func NewSniffer(iface string, ports []int, targetHost string, engine *rules.Engi
 // Rule: on Linux, always use layers.LayerTypeEthernet for AF_PACKET capture,
 // regardless of whether the interface is eth0, lo, docker0, etc.
 func detectLinkLayer(iface string) gopacket.Decoder {
-	// Attempt to detect via interface flags for clarity; default to Ethernet.
 	ifi, err := net.InterfaceByName(iface)
 	if err != nil {
 		log.Printf("[sniffer] Could not look up interface %q, defaulting to Ethernet: %v", iface, err)
@@ -61,9 +60,6 @@ func detectLinkLayer(iface string) gopacket.Decoder {
 	}
 
 	log.Printf("[sniffer] Interface %q — flags: %v, HW: %s", iface, ifi.Flags, ifi.HardwareAddr)
-
-	// On Linux, AF_PACKET on loopback presents Ethernet frames with zero MACs.
-	// DO NOT use LayerTypeLoopback — that is BSD/macOS only (DLT_NULL).
 	return layers.LayerTypeEthernet
 }
 
@@ -99,7 +95,7 @@ func (s *Sniffer) Start() error {
 
 		// Log the first packet and every 100 thereafter to confirm capture is alive.
 		if packetCount == 1 || packetCount%100 == 0 {
-			log.Printf("[sniffer] HEARTBEAT: total=%d matched=%d", packetCount, matchCount)
+			log.Printf("[sniffer] HEARTBEAT (%s): total=%d matched=%d", s.iface, packetCount, matchCount)
 		}
 
 		// Log first few packets in detail so we can see what layers are present.
@@ -140,8 +136,8 @@ func (s *Sniffer) Start() error {
 		matchCount++
 		if matchCount <= 10 || matchCount%50 == 0 {
 			tcp2 := tcp
-			log.Printf("[sniffer] Matched TCP pkt #%d: src=%d dst=%d SYN=%v FIN=%v len=%d",
-				matchCount, tcp2.SrcPort, tcp2.DstPort, tcp2.SYN, tcp2.FIN, len(tcp2.Payload))
+			log.Printf("[sniffer] [%s] Matched TCP pkt #%d: src=%d dst=%d SYN=%v FIN=%v len=%d",
+				s.iface, matchCount, tcp2.SrcPort, tcp2.DstPort, tcp2.SYN, tcp2.FIN, len(tcp2.Payload))
 		}
 
 		assembler.AssembleWithTimestamp(netLayer.NetworkFlow(), tcp, packet.Metadata().Timestamp)
@@ -186,7 +182,8 @@ func (f *multiProtocolStreamFactory) New(net, transport gopacket.Flow) tcpassemb
 	r := tcpreader.NewReaderStream()
 
 	if port == 15672 {
-		s := &httpStream{r: r, engine: f.engine, dispatcher: f.dispatcher, flow: flowID}
+		isRequest := (dstPort == 15672)
+		s := &httpStream{r: r, engine: f.engine, dispatcher: f.dispatcher, flow: flowID, isRequest: isRequest}
 		go s.run()
 		return &s.r
 	}
@@ -295,6 +292,7 @@ type httpStream struct {
 	engine     *rules.Engine
 	dispatcher *alerting.Dispatcher
 	flow       string
+	isRequest  bool
 }
 
 func (s *httpStream) run() {
@@ -302,32 +300,53 @@ func (s *httpStream) run() {
 	defer io.Copy(io.Discard, &s.r) //nolint:errcheck
 
 	buf := bufio.NewReader(&s.r)
-	respCount := 0
+	msgCount := 0
 
 	for {
-		resp, err := http.ReadResponse(buf, nil)
-		if err != nil {
-			if err != io.EOF && err != io.ErrUnexpectedEOF {
-				log.Printf("[http] %s — stream ended after %d responses: %v", s.flow, respCount, err)
+		if s.isRequest {
+			req, err := http.ReadRequest(buf)
+			if err != nil {
+				if err != io.EOF && err != io.ErrUnexpectedEOF {
+					log.Printf("[http] %s — request stream ended after %d msgs: %v", s.flow, msgCount, err)
+				}
+				return
 			}
-			return
-		}
-		respCount++
+			msgCount++
 
-		// FIX: http.ReadResponse requires the previous response body to be
-		// FULLY CONSUMED before the next ReadResponse call can succeed.
-		// resp.Body.Close() on a tcpreader.ReaderStream does NOT drain automatically.
-		// Without io.ReadAll here, the second call to ReadResponse stalls permanently.
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		_ = body
+			// Must consume body for next request
+			body, _ := io.ReadAll(req.Body)
+			req.Body.Close()
+			_ = body
 
-		log.Printf("[http] %s — response #%d status=%d", s.flow, respCount, resp.StatusCode)
+			log.Printf("[http] %s — request #%d %s %s", s.flow, msgCount, req.Method, req.URL.Path)
+			
+			alert := s.engine.EvaluateHTTPRequest(req)
+			if alert != nil {
+				log.Printf("[http] RULE HIT (REQ) on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
+				s.dispatcher.Dispatch(alert)
+			}
+		} else {
+			resp, err := http.ReadResponse(buf, nil)
+			if err != nil {
+				if err != io.EOF && err != io.ErrUnexpectedEOF {
+					log.Printf("[http] %s — response stream ended after %d msgs: %v", s.flow, msgCount, err)
+				}
+				return
+			}
+			msgCount++
 
-		alert := s.engine.EvaluateHTTPResponse(resp)
-		if alert != nil {
-			log.Printf("[http] RULE HIT on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
-			s.dispatcher.Dispatch(alert)
+			// Must consume body for next response
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			_ = body
+
+			log.Printf("[http] %s — response #%d status=%d", s.flow, msgCount, resp.StatusCode)
+
+			alert := s.engine.EvaluateHTTPResponse(resp)
+			if alert != nil {
+				log.Printf("[http] RULE HIT (RESP) on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
+				s.dispatcher.Dispatch(alert)
+			}
 		}
 	}
 }

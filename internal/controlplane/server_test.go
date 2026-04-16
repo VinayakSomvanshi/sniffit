@@ -3,21 +3,26 @@ package controlplane
 import (
 	"bytes"
 	"encoding/json"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/vinayak/sniffit/internal/rules"
+	"github.com/vinayak/sniffit/internal/store"
 )
 
 func TestServer_HandleAlerts(t *testing.T) {
 	// 1. Setup
 	os.Setenv("WEBHOOK_URL", "http://test")
-	server := NewServer()
-	
-	// Ensure fresh state
-	server.alerts = []*rules.Alert{}
+	os.Setenv("SQLITE_PATH", ":memory:")
+	db, err := store.NewStore(context.Background())
+	if err != nil {
+		t.Fatalf("failed: %v", err)
+	}
+	defer db.Close()
+	server := NewServer(":8080", db)
 
 	// 2. Test POST /api/alerts
 	alert := rules.Alert{RuleID: "test.1", Severity: "error", RuleName: "Test Alert"}
@@ -51,13 +56,17 @@ func TestServer_HandleAlerts(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected 200 OK, got %d", rr.Code)
 	}
-	if len(server.alerts) != 0 {
+	alerts, _ := server.store.ListAlerts(context.Background(), "default", 100, 0)
+	if len(alerts) != 0 {
 		t.Error("Alerts should be cleared")
 	}
 }
 
 func TestServer_HandleSettings(t *testing.T) {
-	server := NewServer()
+	os.Setenv("SQLITE_PATH", ":memory:")
+	db, _ := store.NewStore(context.Background())
+	defer db.Close()
+	server := NewServer(":8080", db)
 
 	// Update settings
 	updated := Settings{AITriggerLevel: "info", MinNotifySev: "warn"}

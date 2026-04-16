@@ -14,12 +14,14 @@ import (
 )
 
 type Mutator struct {
-	ControlPlaneURL string
+	ControlPlaneURL    string
+	InsecureSkipVerify bool
 }
 
-func NewMutator(controlPlaneURL string) *Mutator {
+func NewMutator(controlPlaneURL string, insecureSkipVerify bool) *Mutator {
 	return &Mutator{
-		ControlPlaneURL: controlPlaneURL,
+		ControlPlaneURL:    controlPlaneURL,
+		InsecureSkipVerify: insecureSkipVerify,
 	}
 }
 
@@ -64,8 +66,12 @@ func (m *Mutator) HandleMutate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Properly escape the control plane URL for the JSON patch
+	// Properly escape values for the JSON patch
 	cpURL, _ := json.Marshal(m.ControlPlaneURL)
+	insecureSkip := "false"
+	if m.InsecureSkipVerify {
+		insecureSkip = "true"
+	}
 
 	// Create JSON patches to add the sidecar container
 	patch := `[
@@ -74,16 +80,33 @@ func (m *Mutator) HandleMutate(w http.ResponseWriter, r *http.Request) {
 			"path": "/spec/containers/-",
 			"value": {
 				"name": "sniffit-sidecar",
-				"image": "vinayak/sniffit:latest",
+				"image": "vinzyzk/sniffit-probe:latest",
+				"imagePullPolicy": "Always",
 				"securityContext": {
 					"capabilities": {
 						"add": ["NET_RAW", "NET_ADMIN"]
-					}
+					},
+					"runAsUser": 0,
+					"runAsNonRoot": false,
+					"allowPrivilegeEscalation": true
 				},
+				"args": ["-iface=eth0,lo"],
 				"env": [
 					{
 						"name": "CONTROL_PLANE_URL",
 						"value": ` + string(cpURL) + `
+					},
+					{
+						"name": "TENANT_ID",
+						"value": "` + getTenantID(pod) + `"
+					},
+					{
+						"name": "API_KEY",
+						"value": "sniffit_379582a513e97184f7711c3b71c96689"
+					},
+					{
+						"name": "INSECURE_SKIP_VERIFY",
+						"value": "` + insecureSkip + `"
 					},
 					{
 						"name": "POD_NAME",
@@ -131,6 +154,13 @@ func (m *Mutator) HandleMutate(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(resp)
+}
+
+func getTenantID(pod corev1.Pod) string {
+	if tid, ok := pod.Labels["sniffit.tenant_id"]; ok {
+		return tid
+	}
+	return "default"
 }
 
 func sendResponse(w http.ResponseWriter, uid k8sTypes.UID, allowed bool, patch []byte) {

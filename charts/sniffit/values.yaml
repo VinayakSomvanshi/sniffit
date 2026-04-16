@@ -4,13 +4,13 @@
 replicaCount: 1
 
 image:
-  repository: vinayak/sniffit-control-plane
-  pullPolicy: IfNotPresent
+  repository: vinzyzk/sniffit-control-plane
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 
 probeImage:
-  repository: vinayak/sniffit-probe
+  repository: vinzyzk/sniffit-probe
   tag: "latest"
 
 nameOverride: ""
@@ -43,15 +43,27 @@ webhook:
   # Cert-manager integration
   certManager:
     enabled: true
-    issuerRef:
-      name: selfsigned-issuer
-      kind: ClusterIssuer
 
 config:
   # Get your API key from https://openrouter.ai/
-  openRouterKey: "sk-or-v1-..."
+  openRouterKey: "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"
   aiTriggerLevel: "error"
-  webhookUrl: "https://sniffit-webhook.default.svc.cluster.local"
+  controlPlaneUrl: "" # If empty, derive from service name
+  insecureSkipVerify: true
+  database:
+    url: ""           # If set, use PostgreSQL; else SQLite
+    sqlitePath: "./sniffit-data/sniffit.db"
+
+auth:
+  enabled: false
+  sessionSecret: ""
+  rateLimitDefault: 100
+  oidc:
+    enabled: false
+    issuerUrl: ""
+    clientId: ""
+    clientSecret: ""  # via secretKeyRef
+    redirectUrl: ""
 
 resources:
   limits:
@@ -68,6 +80,8 @@ externalMonitors: []
 #   host: "10.0.0.5" # The IP address of the external RabbitMQ
 #   port: 5672
 #   interface: "eth0"
+#   tenant_id: "default"
+#   api_key: ""
 
 autoscaling:
   enabled: false

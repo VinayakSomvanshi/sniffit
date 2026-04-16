@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/vinayak/sniffit/internal/alerting"
@@ -13,7 +15,7 @@ import (
 )
 
 func main() {
-	iface := flag.String("iface", "eth0", "Interface to sniff on")
+	ifaceStr := flag.String("iface", "eth0", "Comma-separated list of interfaces to sniff on (e.g. eth0,lo)")
 	amqpPort := flag.Int("port", 5672, "Primary AMQP port to sniff")
 	mgmtPort := flag.Int("mgmt-port", 15672, "RabbitMQ Management API port to sniff")
 	controlPlane := flag.String("control-plane", "", "Control plane URL (overrides CONTROL_PLANE_URL env)")
@@ -21,6 +23,7 @@ func main() {
 	targetHost := flag.String("target-host", "", "Optional: Only sniff traffic to/from this specific IP/hostname")
 	flag.Parse()
 
+	interfaces := strings.Split(*ifaceStr, ",")
 	ports := []int{*amqpPort, *mgmtPort}
 
 	if *controlPlane != "" {
@@ -30,17 +33,28 @@ func main() {
 		os.Setenv("DISPLAY_NAME", *displayName)
 	}
 
-	log.Printf("Starting SniffIt...")
+	log.Printf("Starting SniffIt on interfaces: %v", interfaces)
 
 	engine := rules.NewEngine()
 	dispatcher := alerting.NewDispatcher()
-	sniffer := capture.NewSniffer(*iface, ports, *targetHost, engine, dispatcher)
 
-	go func() {
-		if err := sniffer.Start(); err != nil {
-			log.Fatalf("Failed to start sniffer: %v", err)
+	var wg sync.WaitGroup
+	for _, iface := range interfaces {
+		iface = strings.TrimSpace(iface)
+		if iface == "" {
+			continue
 		}
-	}()
+		
+		wg.Add(1)
+		go func(itf string) {
+			defer wg.Done()
+			sniffer := capture.NewSniffer(itf, ports, *targetHost, engine, dispatcher)
+			log.Printf("Starting sniffer loop for interface: %s", itf)
+			if err := sniffer.Start(); err != nil {
+				log.Printf("ERROR: Failed to start sniffer on %s: %v", itf, err)
+			}
+		}(iface)
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

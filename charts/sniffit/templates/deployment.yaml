@@ -35,8 +35,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - "--addr=:8080"
+            {{- if .Values.webhook.certManager.enabled }}
             - "--tls-cert=/etc/webhook/certs/tls.crt"
             - "--tls-key=/etc/webhook/certs/tls.key"
+            {{- end }}
           ports:
             - name: http
               containerPort: 8080
@@ -49,13 +51,53 @@ spec:
                   key: openrouter-key
             - name: AI_TRIGGER_LEVEL
               value: {{ .Values.config.aiTriggerLevel | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sniffit.fullname" . }}-auth
+                  key: database-url
+                  optional: true
+            - name: SQLITE_PATH
+              value: {{ .Values.config.database.sqlitePath | quote }}
+            - name: AUTH_ENABLED
+              value: {{ .Values.auth.enabled | quote }}
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sniffit.fullname" . }}-auth
+                  key: session-secret
+                  optional: true
+            - name: RATE_LIMIT_DEFAULT
+              value: {{ .Values.auth.rateLimitDefault | quote }}
+            - name: OIDC_ENABLED
+              value: {{ .Values.auth.oidc.enabled | quote }}
+            - name: OIDC_ISSUER_URL
+              value: {{ .Values.auth.oidc.issuerUrl | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.auth.oidc.clientId | quote }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "sniffit.fullname" . }}-auth
+                  key: oidc-client-secret
+                  optional: true
+            - name: OIDC_REDIRECT_URL
+              value: {{ .Values.auth.oidc.redirectUrl | quote }}
+            - name: CONTROL_PLANE_URL
+              value: {{ .Values.config.controlPlaneUrl | default (printf "https://%s.%s.svc.cluster.local:8080" (include "sniffit.fullname" .) .Release.Namespace) | quote }}
+            - name: INSECURE_SKIP_VERIFY
+              value: {{ .Values.config.insecureSkipVerify | quote }}
+          {{- if .Values.webhook.certManager.enabled }}
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.webhook.certManager.enabled }}
       volumes:
         - name: webhook-certs
           secret:
             secretName: {{ include "sniffit.fullname" . }}-webhook-tls
+      {{- end }}

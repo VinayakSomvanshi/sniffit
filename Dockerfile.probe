@@ -1,0 +1,28 @@
+# Stage 1: Build the Go probe
+FROM golang:alpine AS builder
+
+# Install libpcap-dev and gcc for CGO support (required by gopacket)
+RUN apk add --no-cache libpcap-dev gcc musl-dev linux-headers
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+# Build with CGO_ENABLED=1 because gopacket/libpcap needs it
+RUN CGO_ENABLED=1 GOOS=linux go build -o sniffit-probe ./cmd/sniffit/main.go
+
+# Stage 2: Final image
+FROM alpine:3.20
+
+# libpcap is required at runtime
+RUN apk add --no-cache libpcap
+
+WORKDIR /app
+COPY --from=builder /app/sniffit-probe .
+
+# Net capabilities are usually granted by Kubernetes (NET_RAW, NET_ADMIN)
+# but we can set them here if needed for local docker runs as well.
+# RUN apk add --no-cache libcap && setcap cap_net_raw,cap_net_admin=eip /app/sniffit-probe
+
+ENTRYPOINT ["./sniffit-probe"]

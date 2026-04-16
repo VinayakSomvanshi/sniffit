@@ -344,6 +344,37 @@ func (e *Engine) EvaluateHTTPResponse(resp *http.Response) *Alert {
 	return nil
 }
 
+// EvaluateHTTPRequest evaluates an HTTP request on the management port.
+func (e *Engine) EvaluateHTTPRequest(req *http.Request) *Alert {
+	path := req.URL.Path
+
+	// Rule 5.3: Queue creation via Management API
+	// Path: /api/queues/vhost/name
+	if (req.Method == "PUT" || req.Method == "POST") && strings.HasPrefix(path, "/api/queues/") {
+		parts := strings.Split(strings.TrimPrefix(path, "/api/queues/"), "/")
+		queueName := "unknown"
+		if len(parts) >= 2 {
+			queueName = parts[1]
+		}
+		return infoAlert("5.3", "management_resource_created", "http.request", queueName,
+			fmt.Sprintf("Queue created via Management UI: %s. A user or script is manually declaring topology via the web interface.", queueName))
+	}
+
+	// Rule 5.4: Message publication via Management API
+	// Path: /api/exchanges/vhost/name/publish
+	if req.Method == "POST" && strings.HasPrefix(path, "/api/exchanges/") && strings.HasSuffix(path, "/publish") {
+		parts := strings.Split(strings.TrimPrefix(path, "/api/exchanges/"), "/")
+		exchName := "unknown"
+		if len(parts) >= 2 {
+			exchName = parts[1]
+		}
+		return infoAlert("5.4", "management_message_published", "http.request", exchName,
+			fmt.Sprintf("Message published via Management UI to exchange: %s. Manual message injection detected.", exchName))
+	}
+
+	return nil
+}
+
 // ── Specific rule evaluators ────────────────────────────────────────────────
 
 func (e *Engine) evaluateConnectionClose(cc *amqp.ConnectionClose, mn string) *Alert {

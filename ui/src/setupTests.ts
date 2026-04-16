@@ -28,8 +28,7 @@ class MockEventSource {
 (global as any).EventSource = MockEventSource;
 
 // Mock global fetch to handle relative URLs by prepending BASE_URL
-const originalFetch = global.fetch;
-global.fetch = vi.fn().mockImplementation((input: any, init?: any) => {
+global.fetch = vi.fn().mockImplementation((input: any, _init?: any) => {
   let url = typeof input === 'string' ? input : input.url;
   if (url.startsWith('/')) {
     url = `${BASE_URL}${url}`;

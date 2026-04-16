@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joho/godotenv"
 	"github.com/vinayak/sniffit/internal/controlplane"
+	"github.com/vinayak/sniffit/internal/store"
 )
 
 func main() {
@@ -19,10 +24,26 @@ func main() {
 		log.Println("Note: .env file not found, relying on pure system environment variables")
 	}
 
-	server := controlplane.NewServer()
-	
+	// Initialize database (SQLite by default, PostgreSQL if DATABASE_URL is set)
+	db, err := store.NewStore(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.Close()
+
+	server := controlplane.NewServer(*addr, db)
+
+	// Graceful shutdown
+	go func() {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+		<-sig
+		log.Println("Shutting down...")
+		os.Exit(0)
+	}()
+
 	log.Printf("Starting SniffIt Control Plane and Web UI on %s (TLS: %v)...", *addr, *tlsCert != "")
-	if err := server.Start(*addr, *tlsCert, *tlsKey); err != nil {
+	if err := server.Start(*tlsCert, *tlsKey); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

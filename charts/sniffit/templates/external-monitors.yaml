@@ -36,6 +36,13 @@ spec:
             - "--target-host={{ .host }}"
             - "--name={{ .name }}"
             - "--control-plane={{ $.Values.config.webhookUrl }}"
+          env:
+            - name: TENANT_ID
+              value: {{ .tenant_id | default "default" | quote }}
+            {{- if .api_key }}
+            - name: API_KEY
+              value: {{ .api_key | quote }}
+            {{- end }}
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
 {{- end }}

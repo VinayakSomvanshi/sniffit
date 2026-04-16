@@ -1,0 +1,27 @@
+{{- if .Values.webhook.certManager.enabled -}}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "sniffit.fullname" . }}-issuer
+  labels:
+    {{- include "sniffit.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "sniffit.fullname" . }}-webhook-tls
+  labels:
+    {{- include "sniffit.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "sniffit.fullname" . }}-webhook-tls
+  dnsNames:
+  - {{ include "sniffit.fullname" . }}
+  - {{ include "sniffit.fullname" . }}.{{ .Release.Namespace }}
+  - {{ include "sniffit.fullname" . }}.{{ .Release.Namespace }}.svc
+  - {{ include "sniffit.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    name: {{ include "sniffit.fullname" . }}-issuer
+    kind: Issuer
+{{- end -}}

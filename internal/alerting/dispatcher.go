@@ -2,6 +2,7 @@ package alerting
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -20,11 +21,18 @@ type Dispatcher struct {
 func NewDispatcher() *Dispatcher {
 	url := os.Getenv("CONTROL_PLANE_URL")
 	if url == "" {
-		url = "http://localhost:8080" // Default for testing — matches control-plane default port
+		url = "http://localhost:8080"
 	}
+
+	insecure := os.Getenv("INSECURE_SKIP_VERIFY") == "true"
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+	}
+
 	return &Dispatcher{
 		client: &http.Client{
-			Timeout: 5 * time.Second,
+			Transport: tr,
+			Timeout:   5 * time.Second,
 		},
 		controlURL: url + "/api/alerts",
 	}
@@ -33,6 +41,11 @@ func NewDispatcher() *Dispatcher {
 func (d *Dispatcher) Dispatch(alert *rules.Alert) {
 	alert.PodCPUPct = correlator.GetCPUPercent()
 	alert.PodMemMB = correlator.GetMemoryMB()
+
+	alert.TenantID = os.Getenv("TENANT_ID")
+	if alert.TenantID == "" {
+		alert.TenantID = "default"
+	}
 
 	// In real K8s, these would come from downward API ENVs
 	alert.Pod = os.Getenv("POD_NAME")
@@ -55,7 +68,17 @@ func (d *Dispatcher) Dispatch(alert *rules.Alert) {
 		return
 	}
 
-	resp, err := d.client.Post(d.controlURL, "application/json", bytes.NewBuffer(payload))
+	req, err := http.NewRequest("POST", d.controlURL, bytes.NewBuffer(payload))
+	if err != nil {
+		log.Printf("Failed to map alert to request for %s: %v", d.controlURL, err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if apiKey := os.Getenv("API_KEY"); apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	resp, err := d.client.Do(req)
 	if err != nil {
 		log.Printf("Failed to dispatch alert to %s: %v", d.controlURL, err)
 		// Fallback to logging

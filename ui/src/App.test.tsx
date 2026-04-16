@@ -3,7 +3,7 @@
  * @bun-test environment
  */
 /// <reference lib="dom" />
-import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import App from './App';
 
@@ -41,7 +41,7 @@ vi.mock('lucide-react', () => {
     'Bot', 'Clock', 'Shield', 'Cpu', 'Layers', 'XCircle',
   ];
   return icons.reduce((acc, name) => {
-    acc[name] = ({ size, color }: any) => <div data-testid={`icon-${name}`}>{name}</div>;
+    acc[name] = () => <div data-testid={`icon-${name}`}>{name}</div>;
     return acc;
   }, {} as any);
 });
@@ -133,7 +133,7 @@ describe('SniffIt APP', () => {
     await screen.findByText(/All/i);
     
     // Filter by Error
-    const errorFilter = screen.getByRole('button', { name: /error/i, className: /filter-btn/ });
+    const errorFilter = screen.getByRole('button', { name: /error/i });
     fireEvent.click(errorFilter);
     expect(await screen.findByText(/Authentication failed/i)).toBeInTheDocument();
     expect(screen.queryByText(/Consumer rejected message/i)).not.toBeInTheDocument();
