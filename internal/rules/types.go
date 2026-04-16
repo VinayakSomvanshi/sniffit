@@ -16,7 +16,7 @@ type Alert struct {
 	Pod          string    `json:"pod,omitempty"`
 	Namespace    string    `json:"namespace,omitempty"`
 	Entity       string    `json:"entity,omitempty"`
-	PlainEnglish string    `json:"plain_english"`
+	Layman       string    `json:"layman"`
 	PodCPUPct    float64   `json:"pod_cpu_pct"`
 	PodMemMB     float64   `json:"pod_mem_mb"`
 	Timestamp    time.Time `json:"timestamp"`

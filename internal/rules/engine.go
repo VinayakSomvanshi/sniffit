@@ -18,39 +18,39 @@ type Engine struct{}
 func NewEngine() *Engine { return &Engine{} }
 
 // infoAlert creates a low-severity informational event for normal lifecycle traffic.
-func infoAlert(ruleID, ruleName, methodName, entity, plain string) *Alert {
+func infoAlert(id, name, mn, ent, msg string) *Alert {
 	return &Alert{
-		Severity:     "info",
-		RuleID:       ruleID,
-		RuleName:     ruleName,
-		MethodName:   methodName,
-		Entity:       entity,
-		PlainEnglish: plain,
-		Timestamp:    time.Now().UTC(),
+		Severity:   "info",
+		RuleID:     id,
+		RuleName:   name,
+		MethodName: mn,
+		Entity:     ent,
+		Layman:     msg,
+		Timestamp:  time.Now().UTC(),
 	}
 }
 
-func warnAlert(ruleID, ruleName, methodName, entity, plain string) *Alert {
+func warnAlert(id, name, mn, ent, msg string) *Alert {
 	return &Alert{
-		Severity:     "warn",
-		RuleID:       ruleID,
-		RuleName:     ruleName,
-		MethodName:   methodName,
-		Entity:       entity,
-		PlainEnglish: plain,
-		Timestamp:    time.Now().UTC(),
+		Severity:   "warn",
+		RuleID:     id,
+		RuleName:   name,
+		MethodName: mn,
+		Entity:     ent,
+		Layman:     msg,
+		Timestamp:  time.Now().UTC(),
 	}
 }
 
-func errAlert(ruleID, ruleName, methodName, entity, plain string) *Alert {
+func errAlert(id, name, mn, ent, msg string) *Alert {
 	return &Alert{
-		Severity:     "error",
-		RuleID:       ruleID,
-		RuleName:     ruleName,
-		MethodName:   methodName,
-		Entity:       entity,
-		PlainEnglish: plain,
-		Timestamp:    time.Now().UTC(),
+		Severity:   "error",
+		RuleID:     id,
+		RuleName:   name,
+		MethodName: mn,
+		Entity:     ent,
+		Layman:     msg,
+		Timestamp:  time.Now().UTC(),
 	}
 }
 
@@ -346,29 +346,29 @@ func (e *Engine) EvaluateHTTPResponse(resp *http.Response) *Alert {
 
 // EvaluateHTTPRequest evaluates an HTTP request on the management port.
 func (e *Engine) EvaluateHTTPRequest(req *http.Request) *Alert {
-	path := req.URL.Path
+	path := strings.TrimRight(req.URL.Path, "/")
 
 	// Rule 5.3: Queue creation via Management API
 	// Path: /api/queues/vhost/name
-	if (req.Method == "PUT" || req.Method == "POST") && strings.HasPrefix(path, "/api/queues/") {
-		parts := strings.Split(strings.TrimPrefix(path, "/api/queues/"), "/")
+	if (req.Method == "PUT" || req.Method == "POST") && strings.Contains(path, "/api/queues/") {
+		parts := strings.Split(path, "/")
 		queueName := "unknown"
-		if len(parts) >= 2 {
-			queueName = parts[1]
+		if len(parts) >= 1 {
+			queueName = parts[len(parts)-1]
 		}
-		return infoAlert("5.3", "management_resource_created", "http.request", queueName,
+		return warnAlert("5.3", "management_resource_created", "http.request", queueName,
 			fmt.Sprintf("Queue created via Management UI: %s. A user or script is manually declaring topology via the web interface.", queueName))
 	}
 
 	// Rule 5.4: Message publication via Management API
 	// Path: /api/exchanges/vhost/name/publish
-	if req.Method == "POST" && strings.HasPrefix(path, "/api/exchanges/") && strings.HasSuffix(path, "/publish") {
-		parts := strings.Split(strings.TrimPrefix(path, "/api/exchanges/"), "/")
+	if req.Method == "POST" && strings.Contains(path, "/api/exchanges/") && strings.HasSuffix(path, "/publish") {
+		parts := strings.Split(path, "/")
 		exchName := "unknown"
-		if len(parts) >= 2 {
-			exchName = parts[1]
+		if len(parts) >= 3 {
+			exchName = parts[len(parts)-2]
 		}
-		return infoAlert("5.4", "management_message_published", "http.request", exchName,
+		return warnAlert("5.4", "management_message_published", "http.request", exchName,
 			fmt.Sprintf("Message published via Management UI to exchange: %s. Manual message injection detected.", exchName))
 	}
 
@@ -418,7 +418,7 @@ func (e *Engine) evaluateConnectionClose(cc *amqp.ConnectionClose, mn string) *A
 		RuleID:       "1.x",
 		RuleName:     "connection_closed_unexpectedly",
 		MethodName:   mn,
-		PlainEnglish: fmt.Sprintf("Connection closed with code %d: %q. This is an unclassified broker-side close. Investigate the broker logs for more context.", cc.ReplyCode, cc.ReplyText),
+		Layman: fmt.Sprintf("Connection closed with code %d: %q. This is an unclassified broker-side close. Investigate the broker logs for more context.", cc.ReplyCode, cc.ReplyText),
 		Timestamp:    time.Now().UTC(),
 	}
 }
@@ -489,12 +489,12 @@ func (e *Engine) evaluateChannelClose(cc *amqp.ChannelClose, mn string) *Alert {
 		sev = "error"
 	}
 	return &Alert{
-		Severity:     sev,
-		RuleID:       "3.x",
-		RuleName:     "channel_closed_unexpectedly",
-		MethodName:   mn,
-		PlainEnglish: fmt.Sprintf("Channel closed with code %d: %q. Unclassified channel-level error.", cc.ReplyCode, cc.ReplyText),
-		Timestamp:    time.Now().UTC(),
+		Severity:   sev,
+		RuleID:     "3.x",
+		RuleName:   "channel_closed_unexpectedly",
+		MethodName: mn,
+		Layman:     fmt.Sprintf("Channel closed with code %d: %q. Unclassified channel-level error.", cc.ReplyCode, cc.ReplyText),
+		Timestamp:  time.Now().UTC(),
 	}
 }
 

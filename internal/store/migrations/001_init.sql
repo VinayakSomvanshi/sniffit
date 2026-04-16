@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     pod TEXT,
     namespace TEXT,
     entity TEXT,
-    plain_english TEXT NOT NULL,
+    layman TEXT NOT NULL,
     pod_cpu_pct REAL,
     pod_mem_mb REAL,
     timestamp TEXT NOT NULL,

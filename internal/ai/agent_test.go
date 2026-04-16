@@ -42,7 +42,7 @@ func TestAgent_Diagnose(t *testing.T) {
 	agent := NewAgent()
 
 	// 3. Test
-	alert := &rules.Alert{PlainEnglish: "Connection refused", RuleName: "auth_fail"}
+	alert := &rules.Alert{Layman: "Connection refused", RuleName: "auth_fail"}
 	diagnosis, err := agent.Diagnose(alert)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)

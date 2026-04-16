@@ -102,7 +102,7 @@ Provide in plain text:
 3. Fix: specific steps including RabbitMQ config examples, code patterns, or CLI commands
 
 Max 180 words. No markdown headers.`,
-		alert.PlainEnglish, alert.RuleName, alert.RuleID, alert.MethodName, alert.Entity)
+		alert.Layman, alert.RuleName, alert.RuleID, alert.MethodName, alert.Entity)
 
 	return a.complete(prompt)
 }
@@ -120,7 +120,7 @@ func (a *Agent) AnalyzeStream(alerts []*rules.Alert) (*StreamAnalysis, error) {
 	for i, ev := range events {
 		sb.WriteString(fmt.Sprintf("[%d] [%s] %s | %s\n",
 			i+1, ev.Severity, ev.RuleName,
-			truncate(ev.PlainEnglish, 110)))
+			truncate(ev.Layman, 110)))
 	}
 
 	prompt := fmt.Sprintf(`You are SniffIt, an expert RabbitMQ diagnostic AI. Analyze this stream of %d captured AMQP events.
@@ -268,7 +268,7 @@ func (a *Agent) Chat(userMessage string, history []ChatMessage, recentAlerts []*
 		for _, ev := range events {
 			ts := ev.Timestamp.Format("15:04:05")
 			eventCtx.WriteString(fmt.Sprintf("  [%s] [%s] %s — %s\n",
-				ts, ev.Severity, ev.MethodName, truncate(ev.PlainEnglish, 100)))
+				ts, ev.Severity, ev.MethodName, truncate(ev.Layman, 100)))
 		}
 	}
 

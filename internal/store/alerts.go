@@ -12,7 +12,7 @@ import (
 func (s *Store) ListAlerts(ctx context.Context, tenantID string, limit, offset int) ([]*rules.Alert, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, tenant_id, severity, rule_id, rule_name, method_name,
-		       pod, namespace, entity, plain_english, pod_cpu_pct, pod_mem_mb,
+		       pod, namespace, entity, layman, pod_cpu_pct, pod_mem_mb,
 		       timestamp, amqp_frame_raw, ai_diagnosis, created_at
 		FROM alerts
 		WHERE tenant_id = ?
@@ -30,7 +30,7 @@ func (s *Store) ListAlerts(ctx context.Context, tenantID string, limit, offset i
 func (s *Store) GetAlertByID(ctx context.Context, tenantID string, id int64) (*rules.Alert, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, tenant_id, severity, rule_id, rule_name, method_name,
-		       pod, namespace, entity, plain_english, pod_cpu_pct, pod_mem_mb,
+		       pod, namespace, entity, layman, pod_cpu_pct, pod_mem_mb,
 		       timestamp, amqp_frame_raw, ai_diagnosis, created_at
 		FROM alerts
 		WHERE tenant_id = ? AND id = ?
@@ -51,11 +51,11 @@ func (s *Store) InsertAlert(ctx context.Context, a *rules.Alert) (int64, error) 
 	created := time.Now().UTC()
 	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO alerts (tenant_id, severity, rule_id, rule_name, method_name,
-			pod, namespace, entity, plain_english, pod_cpu_pct, pod_mem_mb,
+			pod, namespace, entity, layman, pod_cpu_pct, pod_mem_mb,
 			timestamp, amqp_frame_raw, ai_diagnosis, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, a.TenantID, a.Severity, a.RuleID, a.RuleName, a.MethodName,
-		a.Pod, a.Namespace, a.Entity, a.PlainEnglish, a.PodCPUPct, a.PodMemMB,
+		a.Pod, a.Namespace, a.Entity, a.Layman, a.PodCPUPct, a.PodMemMB,
 		ts.Format(time.RFC3339), a.AmqpFrameRaw, a.AIDiagnosis, created.Format(time.RFC3339))
 	if err != nil {
 		return 0, err
@@ -108,7 +108,7 @@ func scanAlert(scanner interface{ Scan(...any) error }) (*rules.Alert, error) {
 
 	err := scanner.Scan(
 		&a.ID, &a.TenantID, &a.Severity, &a.RuleID, &a.RuleName,
-		&methodName, &pod, &namespace, &entity, &a.PlainEnglish,
+		&methodName, &pod, &namespace, &entity, &a.Layman,
 		&podCPU, &podMem, &ts, &rawFrame, &diagnosis, &created,
 	)
 	if err != nil {

@@ -458,13 +458,13 @@ func (s *Server) updateTopologyFromAlert(a *rules.Alert) {
 		}
 		q.LastSeen = now
 		q.Active = true
-		if strings.Contains(a.PlainEnglish, "durable=true") {
+		if strings.Contains(a.Layman, "durable=true") {
 			q.Durable = true
 		}
-		if strings.Contains(a.PlainEnglish, "exclusive=true") {
+		if strings.Contains(a.Layman, "exclusive=true") {
 			q.Exclusive = true
 		}
-		if strings.Contains(a.PlainEnglish, "auto-delete=true") {
+		if strings.Contains(a.Layman, "auto-delete=true") {
 			q.AutoDelete = true
 		}
 		topo.Queues[entity] = q
@@ -482,14 +482,14 @@ func (s *Server) updateTopologyFromAlert(a *rules.Alert) {
 		if !exists {
 			ex = &ExchangeInfo{Name: entity, FirstSeen: now, Active: true}
 		}
-		if idx := strings.Index(a.PlainEnglish, "type="); idx >= 0 {
-			rest := a.PlainEnglish[idx+5:]
+		if idx := strings.Index(a.Layman, "type="); idx >= 0 {
+			rest := a.Layman[idx+5:]
 			end := strings.IndexAny(rest, " ,.")
 			if end > 0 {
 				ex.Type = rest[:end]
 			}
 		}
-		if strings.Contains(a.PlainEnglish, "durable=true") {
+		if strings.Contains(a.Layman, "durable=true") {
 			ex.Durable = true
 		}
 		ex.Active = true
@@ -501,12 +501,12 @@ func (s *Server) updateTopologyFromAlert(a *rules.Alert) {
 		}
 
 	case "consumer_registered":
-		tag := extractBetween(a.PlainEnglish, "tag=", ",")
+		tag := extractBetween(a.Layman, "tag=", ",")
 		if tag == "" {
 			tag = fmt.Sprintf("consumer@%s", entity)
 		}
 		tag = strings.Trim(tag, `"`)
-		exclusive := strings.Contains(a.PlainEnglish, "(exclusive)")
+		exclusive := strings.Contains(a.Layman, "(exclusive)")
 		topo.Consumers[tag] = &ConsumerInfo{
 			ConsumerTag: tag,
 			Queue:       entity,

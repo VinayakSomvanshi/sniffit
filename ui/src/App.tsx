@@ -9,7 +9,7 @@ interface Alert {
   source?: string;
   broker?: string;
   entity?: string;
-  plain_english: string;
+  layman: string;
   pod_cpu_pct: number;
   pod_mem_mb: number;
   timestamp: string;
@@ -160,7 +160,7 @@ function AlertRow({ alert, onClick, selected }: { alert: Alert; onClick: () => v
       </div>
       <div>
         <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px', lineHeight: 1.3 }}>
-          {alert.plain_english.slice(0, 100)}{alert.plain_english.length > 100 ? '...' : ''}
+          {alert.layman.slice(0, 100)}{alert.layman.length > 100 ? '...' : ''}
         </div>
         <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
           {alert.method_name && <span>{alert.method_name}</span>}
@@ -421,7 +421,7 @@ export default function App() {
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter(a =>
-      (a.plain_english || '').toLowerCase().includes(q) ||
+      (a.layman || '').toLowerCase().includes(q) ||
       (a.rule_name || '').toLowerCase().includes(q) ||
       (a.method_name || '').toLowerCase().includes(q) ||
       (a.entity || '').toLowerCase().includes(q) ||
@@ -1154,7 +1154,7 @@ export default function App() {
                   background: 'var(--surface2)', border: `1px solid var(--border)`,
                   borderLeft: `3px solid ${SEV_COLOR[selectedAlert.severity]}`,
                 }}>
-                  {selectedAlert.plain_english}
+                  {selectedAlert.layman}
                 </div>
                 {selectedAlert.ai_diagnosis && (
                   <div style={{

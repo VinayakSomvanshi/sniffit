@@ -12,7 +12,7 @@ const MOCK_ALERTS = [
     severity: "error",
     rule_id: "1.1",
     rule_name: "Authentication Refused",
-    plain_english: "Authentication failed",
+    layman: "Authentication failed",
     timestamp: new Date().toISOString(),
     amqp_frame_raw: "...",
     pod_cpu_pct: 10,
@@ -22,7 +22,7 @@ const MOCK_ALERTS = [
     severity: "warn",
     rule_id: "4.3",
     rule_name: "Message Rejected",
-    plain_english: "Consumer rejected message",
+    layman: "Consumer rejected message",
     timestamp: new Date(Date.now() - 60000).toISOString(),
     amqp_frame_raw: "...",
     pod_cpu_pct: 5,
@@ -85,7 +85,7 @@ describe('SniffIt APP', () => {
       severity: "info",
       rule_id: "9.9",
       rule_name: "New Event",
-      plain_english: "Live event update",
+      layman: "Live event update",
       timestamp: new Date().toISOString(),
       amqp_frame_raw: "..."
     };
