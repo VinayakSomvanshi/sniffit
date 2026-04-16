@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 	"github.com/google/gopacket/tcpassembly/tcpreader"
 	"github.com/vinayak/sniffit/internal/alerting"
 	"github.com/vinayak/sniffit/internal/amqp"
+	"github.com/vinayak/sniffit/internal/logging"
 	"github.com/vinayak/sniffit/internal/rules"
 )
 
@@ -55,11 +55,11 @@ func NewSniffer(iface string, ports []int, targetHost string, engine *rules.Engi
 func detectLinkLayer(iface string) gopacket.Decoder {
 	ifi, err := net.InterfaceByName(iface)
 	if err != nil {
-		log.Printf("[sniffer] Could not look up interface %q, defaulting to Ethernet: %v", iface, err)
+		logging.Debug("[sniffer] Could not look up interface %q, defaulting to Ethernet: %v", iface, err)
 		return layers.LayerTypeEthernet
 	}
 
-	log.Printf("[sniffer] Interface %q — flags: %v, HW: %s", iface, ifi.Flags, ifi.HardwareAddr)
+	logging.Debug("[sniffer] Interface %q — flags: %v, HW: %s", iface, ifi.Flags, ifi.HardwareAddr)
 	return layers.LayerTypeEthernet
 }
 
@@ -73,7 +73,7 @@ func (s *Sniffer) Start() error {
 	defer tpacket.Close()
 
 	firstLayer := detectLinkLayer(s.iface)
-	log.Printf("[sniffer] Starting capture on %s | link-layer: %v | ports: %v | target: %q",
+	logging.Debug("[sniffer] Starting capture on %s | link-layer: %v | ports: %v | target: %q",
 		s.iface, firstLayer, s.ports, s.targetHost)
 
 	source := gopacket.NewPacketSource(tpacket, firstLayer)
@@ -95,7 +95,7 @@ func (s *Sniffer) Start() error {
 
 		// Log the first packet and every 100 thereafter to confirm capture is alive.
 		if packetCount == 1 || packetCount%100 == 0 {
-			log.Printf("[sniffer] HEARTBEAT (%s): total=%d matched=%d", s.iface, packetCount, matchCount)
+			logging.Debug("[sniffer] HEARTBEAT (%s): total=%d matched=%d", s.iface, packetCount, matchCount)
 		}
 
 		// Log first few packets in detail so we can see what layers are present.
@@ -136,7 +136,7 @@ func (s *Sniffer) Start() error {
 		matchCount++
 		if matchCount <= 10 || matchCount%50 == 0 {
 			tcp2 := tcp
-			log.Printf("[sniffer] [%s] Matched TCP pkt #%d: src=%d dst=%d SYN=%v FIN=%v len=%d",
+			logging.Debug("[sniffer] [%s] Matched TCP pkt #%d: src=%d dst=%d SYN=%v FIN=%v len=%d",
 				s.iface, matchCount, tcp2.SrcPort, tcp2.DstPort, tcp2.SYN, tcp2.FIN, len(tcp2.Payload))
 		}
 
@@ -156,7 +156,7 @@ func logPacketLayers(pkt gopacket.Packet, n int) {
 	if pkt.ErrorLayer() != nil {
 		errStr = fmt.Sprintf(" | ERROR: %v", pkt.ErrorLayer().Error())
 	}
-	log.Printf("[sniffer] Packet #%d layers: %v%s", n, layerNames, errStr)
+	logging.Debug("[sniffer] Packet #%d layers: %v%s", n, layerNames, errStr)
 }
 
 // ── Stream Factory ────────────────────────────────────────────────────────────
@@ -236,13 +236,13 @@ func (s *amqpStream) run() {
 	var frameReader io.Reader
 	if headerBuf[0] == 'A' && headerBuf[1] == 'M' && headerBuf[2] == 'Q' && headerBuf[3] == 'P' {
 		// Client side: protocol header consumed, remaining stream is pure frames.
-		log.Printf("[amqp] %s — client stream, protocol header OK (v%d.%d.%d)",
+		logging.Debug("[amqp] %s — client stream, protocol header OK (v%d.%d.%d)",
 			s.flow, headerBuf[5], headerBuf[6], headerBuf[7])
 		frameReader = &s.r
 	} else {
 		// Server side: the 8 bytes we already read are the start of a frame.
 		// Push them back using a MultiReader so the parser sees a contiguous stream.
-		log.Printf("[amqp] %s — server stream (no header), pushing 8 bytes back", s.flow)
+		logging.Debug("[amqp] %s — server stream (no header), pushing 8 bytes back", s.flow)
 		frameReader = io.MultiReader(bytes.NewReader(headerBuf), &s.r)
 	}
 
@@ -257,7 +257,7 @@ func (s *amqpStream) runFrameLoop(r io.Reader) {
 		frame, err := parser.NextFrame()
 		if err != nil {
 			if err != io.EOF && err != io.ErrUnexpectedEOF {
-				log.Printf("[amqp] %s — stream ended after %d frames: %v", s.flow, frameCount, err)
+				logging.Debug("[amqp] %s — stream ended after %d frames: %v", s.flow, frameCount, err)
 			}
 			return
 		}
@@ -271,15 +271,15 @@ func (s *amqpStream) runFrameLoop(r io.Reader) {
 
 		method, err := frame.UnmarshalMethod()
 		if err != nil {
-			log.Printf("[amqp] %s — failed to unmarshal method: %v", s.flow, err)
+			logging.Debug("[amqp] %s — failed to unmarshal method: %v", s.flow, err)
 			continue
 		}
 
-		log.Printf("[amqp] %s — frame #%d Class=%d Method=%d", s.flow, frameCount, method.ClassID, method.MethodID)
+		logging.Debug("[amqp] %s — frame #%d Class=%d Method=%d", s.flow, frameCount, method.ClassID, method.MethodID)
 
 		alert := s.engine.EvaluateMethod(method)
 		if alert != nil {
-			log.Printf("[amqp] RULE HIT on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
+			logging.Debug("[amqp] RULE HIT on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
 			s.dispatcher.Dispatch(alert)
 		}
 	}
@@ -307,7 +307,7 @@ func (s *httpStream) run() {
 			req, err := http.ReadRequest(buf)
 			if err != nil {
 				if err != io.EOF && err != io.ErrUnexpectedEOF {
-					log.Printf("[http] %s — request stream ended after %d msgs: %v", s.flow, msgCount, err)
+					logging.Debug("[http] %s — request stream ended after %d msgs: %v", s.flow, msgCount, err)
 				}
 				return
 			}
@@ -318,18 +318,18 @@ func (s *httpStream) run() {
 			req.Body.Close()
 			_ = body
 
-			log.Printf("[http] %s — request #%d %s %s", s.flow, msgCount, req.Method, req.URL.Path)
+			logging.Debug("[http] %s — request #%d %s %s", s.flow, msgCount, req.Method, req.URL.Path)
 			
 			alert := s.engine.EvaluateHTTPRequest(req)
 			if alert != nil {
-				log.Printf("[http] RULE HIT (REQ) on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
+				logging.Debug("[http] RULE HIT (REQ) on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
 				s.dispatcher.Dispatch(alert)
 			}
 		} else {
 			resp, err := http.ReadResponse(buf, nil)
 			if err != nil {
 				if err != io.EOF && err != io.ErrUnexpectedEOF {
-					log.Printf("[http] %s — response stream ended after %d msgs: %v", s.flow, msgCount, err)
+					logging.Debug("[http] %s — response stream ended after %d msgs: %v", s.flow, msgCount, err)
 				}
 				return
 			}
@@ -340,11 +340,11 @@ func (s *httpStream) run() {
 			resp.Body.Close()
 			_ = body
 
-			log.Printf("[http] %s — response #%d status=%d", s.flow, msgCount, resp.StatusCode)
+			logging.Debug("[http] %s — response #%d status=%d", s.flow, msgCount, resp.StatusCode)
 
 			alert := s.engine.EvaluateHTTPResponse(resp)
 			if alert != nil {
-				log.Printf("[http] RULE HIT (RESP) on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
+				logging.Debug("[http] RULE HIT (RESP) on %s — rule=%s severity=%s", s.flow, alert.RuleName, alert.Severity)
 				s.dispatcher.Dispatch(alert)
 			}
 		}

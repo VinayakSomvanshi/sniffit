@@ -9,6 +9,33 @@ metadata:
   labels:
     {{- include "sniffit.labels" . | nindent 4 }}
 webhooks:
+  {{- /* Istio-style namespace-wide injection: all pods in labeled namespaces */ -}}
+  {{- if .Values.webhook.namespaceLevelInjection }}
+  - name: sniffit-namespace.{{ include "sniffit.fullname" . }}.sniffit.io
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: {{ include "sniffit.fullname" . }}
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate"
+        port: {{ .Values.webhook.port }}
+      {{- if not .Values.webhook.certManager.enabled }}
+      caBundle: {{ .Values.webhook.caBundle }}
+      {{- end }}
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    sideEffects: None
+    timeoutSeconds: 5
+    namespaceSelector:
+      matchLabels:
+        sniffit/inject: "true"
+    objectSelector: {}
+  {{- end }}
+  {{- /* Per-pod label injection: only pods with sniffit/inject=true */ -}}
+  {{- /* Always present as fallback regardless of namespaceLevelInjection */ -}}
   - name: mutate.sniffit.io
     admissionReviewVersions: ["v1"]
     clientConfig:

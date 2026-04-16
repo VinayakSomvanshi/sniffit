@@ -27,3 +27,5 @@ ui/.env.*
 
 # Kubernetes
 *.kubeconfig
+sniffit
+control-plane

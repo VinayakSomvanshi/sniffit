@@ -87,6 +87,10 @@ spec:
               value: {{ .Values.config.controlPlaneUrl | default (printf "https://%s.%s.svc.cluster.local:8080" (include "sniffit.fullname" .) .Release.Namespace) | quote }}
             - name: INSECURE_SKIP_VERIFY
               value: {{ .Values.config.insecureSkipVerify | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: NAMESPACE_LEVEL_INJECTION
+              value: {{ .Values.webhook.namespaceLevelInjection | quote }}
           {{- if .Values.webhook.certManager.enabled }}
           volumeMounts:
             - name: webhook-certs

@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/vinayak/sniffit/internal/correlator"
+	"github.com/vinayak/sniffit/internal/logging"
 	"github.com/vinayak/sniffit/internal/rules"
 )
 
@@ -64,13 +64,13 @@ func (d *Dispatcher) Dispatch(alert *rules.Alert) {
 
 	payload, err := json.MarshalIndent(alert, "", "  ")
 	if err != nil {
-		log.Printf("Error marshaling alert: %v", err)
+		logging.Debug("Error marshaling alert: %v", err)
 		return
 	}
 
 	req, err := http.NewRequest("POST", d.controlURL, bytes.NewBuffer(payload))
 	if err != nil {
-		log.Printf("Failed to map alert to request for %s: %v", d.controlURL, err)
+		logging.Debug("Failed to map alert to request for %s: %v", d.controlURL, err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -80,16 +80,16 @@ func (d *Dispatcher) Dispatch(alert *rules.Alert) {
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		log.Printf("Failed to dispatch alert to %s: %v", d.controlURL, err)
+		logging.Debug("Failed to dispatch alert to %s: %v", d.controlURL, err)
 		// Fallback to logging
-		log.Printf("== ALARM TRIGGERED ==\n%s\n=====================", string(payload))
+		logging.Debug("== ALARM TRIGGERED ==\n%s\n=====================", string(payload))
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		log.Printf("[dispatcher] Control plane returned non-2xx status: %d for rule %s", resp.StatusCode, alert.RuleName)
+		logging.Debug("[dispatcher] Control plane returned non-2xx status: %d for rule %s", resp.StatusCode, alert.RuleName)
 	} else {
-		log.Printf("[dispatcher] Alert dispatched successfully: rule=%s severity=%s pod=%s", alert.RuleName, alert.Severity, alert.Pod)
+		logging.Debug("[dispatcher] Alert dispatched successfully: rule=%s severity=%s pod=%s", alert.RuleName, alert.Severity, alert.Pod)
 	}
 }

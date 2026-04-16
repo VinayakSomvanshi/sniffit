@@ -102,11 +102,12 @@ func NewServer(addr string, store *store.Store) *Server {
 	}
 
 	insecureSkip := (os.Getenv("INSECURE_SKIP_VERIFY") == "true")
+	namespaceLevelInjection := os.Getenv("NAMESPACE_LEVEL_INJECTION") == "true"
 
 	s := &Server{
 		addr:   addr,
 		store:  store,
-		mutator: webhook.NewMutator(webhookURL, insecureSkip),
+		mutator: webhook.NewMutator(webhookURL, insecureSkip, namespaceLevelInjection),
 		aiAgent: ai.NewAgent(),
 		settings: Settings{
 			AITriggerLevel: "error",

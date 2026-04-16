@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/vinayak/sniffit/internal/logging"
 	"github.com/vinayak/sniffit/internal/rules"
 )
 
@@ -64,7 +64,7 @@ func NewAgent() *Agent {
 		if ollamaURL == "" {
 			ollamaURL = "http://localhost:11434" // Default Ollama port
 		}
-		log.Printf("[ai] Agent initialized — LOCAL OLLAMA MODE: %s at %s", ollamaModel, ollamaURL)
+		logging.Debug("[ai] Agent initialized — LOCAL OLLAMA MODE: %s at %s", ollamaModel, ollamaURL)
 		return &Agent{
 			primaryModel: ollamaModel,
 			ollamaURL:    ollamaURL,
@@ -76,7 +76,7 @@ func NewAgent() *Agent {
 	if model == "" {
 		model = fallbackModels[0]
 	}
-	log.Printf("[ai] Agent initialized — CLOUD MODE: %s (%d fallbacks configured)", model, len(fallbackModels))
+	logging.Debug("[ai] Agent initialized — CLOUD MODE: %s (%d fallbacks configured)", model, len(fallbackModels))
 	return &Agent{
 		openRouterKey: os.Getenv("OPENROUTER_API_KEY"),
 		primaryModel:  model,
@@ -217,7 +217,7 @@ Score: 90-100=healthy, 70-89=minor issues, 40-69=attention needed, <40=critical`
 
 	response, err := a.complete(prompt)
 	if err != nil {
-		log.Printf("[ai] Health summary AI failed, using heuristic: %v", err)
+		logging.Debug("[ai] Health summary AI failed, using heuristic: %v", err)
 		return a.heuristicHealth(errCount, warnCount), nil
 	}
 
@@ -332,7 +332,7 @@ func (a *Agent) completeWithMessages(messages []map[string]interface{}) (string,
 	if a.ollamaURL != "" {
 		result, err := a.callAPI(a.ollamaURL+"/v1/chat/completions", a.primaryModel, messages, true)
 		if err != nil {
-			log.Printf("[ai] Local Ollama model %s failed: %v", a.primaryModel, err)
+			logging.Debug("[ai] Local Ollama model %s failed: %v", a.primaryModel, err)
 			return "", err
 		}
 		return result, nil
@@ -355,12 +355,12 @@ func (a *Agent) completeWithMessages(messages []map[string]interface{}) (string,
 		result, err := a.callAPI("https://openrouter.ai/api/v1/chat/completions", model, messages, false)
 		if err == nil {
 			if i > 0 {
-				log.Printf("[ai] Succeeded with fallback model %s", model)
+				logging.Debug("[ai] Succeeded with fallback model %s", model)
 			}
 			return result, nil
 		}
 		lastErr = err
-		log.Printf("[ai] Model %s failed: %v", model, err)
+		logging.Debug("[ai] Model %s failed: %v", model, err)
 		if i < len(candidates)-1 {
 			time.Sleep(250 * time.Millisecond)
 		}

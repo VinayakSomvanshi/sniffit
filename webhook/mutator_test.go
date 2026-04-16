@@ -15,7 +15,7 @@ import (
 )
 
 func TestMutator_HandleMutate_Injected(t *testing.T) {
-	mutator := NewMutator("http://control-plane:8080")
+	mutator := NewMutator("http://control-plane:8080", true, false)
 
 	// 1. Create a pod that needs injection
 	pod := corev1.Pod{
@@ -65,7 +65,7 @@ func TestMutator_HandleMutate_Injected(t *testing.T) {
 }
 
 func TestMutator_HandleMutate_Skip(t *testing.T) {
-	mutator := NewMutator("http://control-plane:8080")
+	mutator := NewMutator("http://control-plane:8080", true, false)
 
 	// Pod WITHOUT label
 	pod := corev1.Pod{

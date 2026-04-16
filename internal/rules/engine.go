@@ -2,12 +2,12 @@ package rules
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/vinayak/sniffit/internal/amqp"
+	"github.com/vinayak/sniffit/internal/logging"
 )
 
 // Engine processes parsed AMQP frames.
@@ -59,7 +59,7 @@ func errAlert(id, name, mn, ent, msg string) *Alert {
 // frames that would create too much noise.
 func (e *Engine) EvaluateMethod(m *amqp.MethodPayload) *Alert {
 	mn := amqp.MethodName(m.ClassID, m.MethodID)
-	log.Printf("[rules] evaluate %s (class=%d method=%d)", mn, m.ClassID, m.MethodID)
+	logging.Debug("[rules] evaluate %s (class=%d method=%d)", mn, m.ClassID, m.MethodID)
 
 	switch m.ClassID {
 
@@ -326,7 +326,7 @@ func (e *Engine) EvaluateMethod(m *amqp.MethodPayload) *Alert {
 	}
 
 	// Unknown class/method — log and skip
-	log.Printf("[rules] Unknown AMQP method: class=%d method=%d — skipping", m.ClassID, m.MethodID)
+	logging.Debug("[rules] Unknown AMQP method: class=%d method=%d — skipping", m.ClassID, m.MethodID)
 	return nil
 }
 
@@ -346,7 +346,12 @@ func (e *Engine) EvaluateHTTPResponse(resp *http.Response) *Alert {
 
 // EvaluateHTTPRequest evaluates an HTTP request on the management port.
 func (e *Engine) EvaluateHTTPRequest(req *http.Request) *Alert {
-	path := strings.TrimRight(req.URL.Path, "/")
+	// Clean path to handle multiple slashes (e.g. ///sms-queue)
+	path := req.URL.Path
+	for strings.Contains(path, "//") {
+		path = strings.ReplaceAll(path, "//", "/")
+	}
+	path = strings.TrimRight(path, "/")
 
 	// Rule 5.3: Queue creation via Management API
 	// Path: /api/queues/vhost/name
